@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Cek Load Model BabyCry</title>
+<style>
+body{font-family:Inter,Arial,sans-serif;background:#f5f7fb;color:#111827;margin:0;padding:28px}
+.card{max-width:900px;margin:auto;background:#fff;border:1px solid #e5e7eb;border-radius:16px;padding:24px;box-shadow:0 10px 24px rgba(15,23,42,.08)}
+h1{margin-top:0}.row{padding:12px 0;border-bottom:1px solid #eee}.ok{color:#047857;font-weight:700}.bad{color:#b91c1c;font-weight:700}.warn{color:#b45309;font-weight:700}code{background:#f3f4f6;padding:2px 6px;border-radius:6px}pre{white-space:pre-wrap;background:#111827;color:#f9fafb;padding:12px;border-radius:10px;overflow:auto}
+</style>
+</head>
+<body>
+<div class="card">
+<h1>Cek Load Model BabyCry</h1>
+<p>Halaman ini untuk mengecek apakah <code>model.json</code> dan file <code>.bin</code> benar-benar bisa dibaca dari GitHub Pages.</p>
+<div id="result">Memulai pengecekan...</div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/dist/tf.min.js"></script>
+<script>
+const paths = {
+  "CNN-LSTM": "models/cnn_lstm/model.json",
+  "CNN": "models/cnn/model.json",
+  "RNN": "models/rnn/model.json"
+};
+const firstBin = {
+  "CNN-LSTM": "models/cnn_lstm/group1-shard1of3.bin",
+  "CNN": "models/cnn/group1-shard1of14.bin",
+  "RNN": "models/rnn/group1-shard1of1.bin"
+};
+const el = document.getElementById('result');
+function add(html){ el.insertAdjacentHTML('beforeend', html); }
+async function checkBin(name, url){
+  const r = await fetch(url, {cache:'no-store'});
+  const b = await r.arrayBuffer();
+  const head = new TextDecoder().decode(new Uint8Array(b.slice(0,80)));
+  if(head.startsWith('version https://git-lfs.github.com/spec')){
+    throw new Error('LFS POINTER: file .bin masih tersimpan sebagai Git LFS, bukan file model asli. Hapus .gitattributes lalu upload ulang file .bin biasa.');
+  }
+  if(b.byteLength < 100000){
+    throw new Error('Ukuran .bin terlalu kecil (' + b.byteLength + ' bytes). Kemungkinan file rusak atau bukan file model asli.');
+  }
+  return b.byteLength;
+}
+async function main(){
+  el.innerHTML = '';
+  add('<p>Versi TensorFlow.js: <b>'+tf.version.tfjs+'</b></p>');
+  for(const [name, path] of Object.entries(paths)){
+    add('<div class="row"><b>'+name+'</b><br>');
+    try{
+      const size = await checkBin(name, firstBin[name]);
+      add('Cek file .bin: <span class="ok">OK</span> ('+size.toLocaleString('id-ID')+' bytes)<br>');
+      const model = await tf.loadLayersModel(path);
+      add('Load model: <span class="ok">LOADED</span><br>Input shape: <code>'+JSON.stringify(model.inputs.map(i=>i.shape))+'</code><br>Output shape: <code>'+JSON.stringify(model.outputs.map(o=>o.shape))+'</code>');
+      model.dispose();
+    }catch(e){
+      add('<span class="bad">GAGAL</span><pre>'+String(e.stack || e.message || e)+'</pre>');
+    }
+    add('</div>');
+  }
+}
+main();
+</script>
+</body>
+</html>
